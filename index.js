@@ -35,7 +35,7 @@ app.get("/speaker", (req, res) => {
           color: #fff;
         }
         .box {
-          max-width: 500px;
+          max-width: 520px;
           margin: auto;
           background: #222;
           padding: 30px;
@@ -46,13 +46,15 @@ app.get("/speaker", (req, res) => {
           margin-top: 20px;
           color: #7CFC00;
         }
-        .hint {
-          margin-top: 16px;
+        .small {
+          margin-top: 12px;
           color: #ccc;
           font-size: 14px;
+          word-break: break-word;
         }
         button {
           margin-top: 20px;
+          margin-right: 8px;
           padding: 12px 20px;
           font-size: 16px;
           border: none;
@@ -67,17 +69,25 @@ app.get("/speaker", (req, res) => {
         <p>เปิดหน้านี้ค้างไว้บนมือถือหรือแท็บเล็ตที่กล่อง</p>
         <button onclick="testSpeak()">ทดสอบเสียง</button>
         <div class="status" id="status">กำลังรอการชำระเงิน...</div>
-        <div class="hint">ถ้า iPhone หรือ Safari ไม่พูด ให้กดปุ่มทดสอบเสียง 1 ครั้งก่อน</div>
+        <div class="small" id="debug">กำลังเชื่อมต่อ...</div>
       </div>
 
       <script>
         const statusEl = document.getElementById("status");
+        const debugEl = document.getElementById("debug");
+
+        function logDebug(text) {
+          debugEl.innerText = text;
+        }
 
         function speakText(text) {
+          window.speechSynthesis.cancel();
           const msg = new SpeechSynthesisUtterance(text);
           msg.lang = "th-TH";
           msg.rate = 1;
+          msg.volume = 1;
           window.speechSynthesis.speak(msg);
+          logDebug("กำลังพูด: " + text);
         }
 
         function testSpeak() {
@@ -86,14 +96,19 @@ app.get("/speaker", (req, res) => {
 
         const eventSource = new EventSource("/events");
 
+        eventSource.onopen = function() {
+          logDebug("เชื่อมต่อ events สำเร็จ");
+        };
+
         eventSource.onmessage = function(event) {
+          logDebug("ได้รับ event: " + event.data);
           const data = JSON.parse(event.data);
           statusEl.innerText = data.message;
           speakText(data.message);
         };
 
         eventSource.onerror = function() {
-          statusEl.innerText = "การเชื่อมต่อหลุด กำลังเชื่อมต่อใหม่...";
+          logDebug("การเชื่อมต่อหลุด กำลังเชื่อมต่อใหม่...");
         };
       </script>
     </body>
@@ -106,30 +121,39 @@ app.get("/events", (req, res) => {
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
 
-  res.write("data: " + JSON.stringify({ message: "เชื่อมต่อสำเร็จ" }) + "\\n\\n");
+  const clientId = Date.now();
+  clients.push({ id: clientId, res });
 
-  clients.push(res);
+  console.log("speaker connected:", clientId, "clients:", clients.length);
+
+  res.write(`data: ${JSON.stringify({ message: "เชื่อมต่อสำเร็จ" })}\n\n`);
 
   req.on("close", () => {
-    clients = clients.filter(client => client !== res);
+    clients = clients.filter(client => client.id !== clientId);
+    console.log("speaker disconnected:", clientId, "clients:", clients.length);
   });
 });
 
 function sendToSpeaker(message) {
-  const data = "data: " + JSON.stringify({ message }) + "\\n\\n";
-  clients.forEach(client => client.write(data));
+  const data = `data: ${JSON.stringify({ message })}\n\n`;
+  console.log("sending to clients:", clients.length, "message:", message);
+
+  clients.forEach(client => {
+    client.res.write(data);
+  });
 }
 
 app.get("/test-pay", (req, res) => {
   const amount = req.query.amount || 100;
   const message = "รับเงินแล้ว " + amount + " บาท";
 
-  console.log(message);
+  console.log("test-pay called");
   sendToSpeaker(message);
 
   res.json({
     ok: true,
-    message
+    message,
+    connectedClients: clients.length
   });
 });
 
