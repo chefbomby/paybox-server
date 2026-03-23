@@ -29,44 +29,37 @@ app.post("/create-qr", async (req, res) => {
 
     const amountInSatang = Math.round(Number(amount) * 100);
 
+    // 🔹 STEP 1: create source
     const source = await omise.sources.create({
       type: "promptpay",
       amount: amountInSatang,
       currency: "THB"
     });
 
+    // 🔹 STEP 2: create charge (สำคัญมาก)
     const charge = await omise.charges.create({
       amount: amountInSatang,
       currency: "THB",
       source: source.id
     });
 
-    const qrImage = charge?.source?.scannable_code?.image?.download_uri;
-
-    if (!qrImage) {
-      return res.status(500).json({
-        ok: false,
-        error: "qrImage not found",
-        debugVersion: "v3-safe-qr",
-        charge
-      });
-    }
+    // 🔹 STEP 3: ดึง QR จาก charge
+    const qrImage = charge.source.scannable_code.image.download_uri;
 
     res.json({
       ok: true,
-      amount: Number(amount),
+      amount,
       sourceId: source.id,
       chargeId: charge.id,
-      debugVersion: "v3-safe-qr",
       qrImage
     });
+
   } catch (err) {
     console.error("create-qr error:", err);
 
     res.status(500).json({
       ok: false,
-      error: err.message,
-      debugVersion: "v3-safe-qr"
+      error: err.message
     });
   }
 });
