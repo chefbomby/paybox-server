@@ -28,11 +28,11 @@ app.post("/create-qr", async (req, res) => {
     });
 
     res.json({
-      ok: true,
-      amount,
-      sourceId: source.id,
-      qrImage: source.scannable_code.image.download_uri
-    });
+  ok: true,
+  amount,
+  sourceId: source.id,
+  qrImage: charge.source.scannable_code.image.download_uri
+});
   } catch (err) {
     console.error(err);
     res.status(500).json({
