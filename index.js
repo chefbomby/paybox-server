@@ -12,14 +12,12 @@ const omise = Omise({
   secretKey: process.env.OMISE_SECRET_KEY
 });
 
-// เก็บ client ที่เปิดหน้ากล่องค้างไว้
 let clients = [];
 
 app.get("/", (req, res) => {
   res.send("Paybox server is running");
 });
 
-// หน้า test ง่าย ๆ สำหรับใช้เป็น "กล่องพูด"
 app.get("/speaker", (req, res) => {
   res.send(`
     <!DOCTYPE html>
@@ -69,7 +67,7 @@ app.get("/speaker", (req, res) => {
         <p>เปิดหน้านี้ค้างไว้บนมือถือหรือแท็บเล็ตที่กล่อง</p>
         <button onclick="testSpeak()">ทดสอบเสียง</button>
         <div class="status" id="status">กำลังรอการชำระเงิน...</div>
-        <div class="hint">ถ้า iPhone/Safari ไม่พูด ให้กดปุ่มทดสอบเสียง 1 ครั้งก่อน</div>
+        <div class="hint">ถ้า iPhone หรือ Safari ไม่พูด ให้กดปุ่มทดสอบเสียง 1 ครั้งก่อน</div>
       </div>
 
       <script>
@@ -95,7 +93,7 @@ app.get("/speaker", (req, res) => {
         };
 
         eventSource.onerror = function() {
-          statusEl.innerText = "การเชื่อมต่อหลุด กำลังพยายามเชื่อมต่อใหม่...";
+          statusEl.innerText = "การเชื่อมต่อหลุด กำลังเชื่อมต่อใหม่...";
         };
       </script>
     </body>
@@ -103,13 +101,12 @@ app.get("/speaker", (req, res) => {
   `);
 });
 
-// ช่องส่ง event ไปยังหน้ากล่อง
 app.get("/events", (req, res) => {
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
 
-  res.write("data: " + JSON.stringify({ message: "เชื่อมต่อสำเร็จ" }) + "\n\n");
+  res.write("data: " + JSON.stringify({ message: "เชื่อมต่อสำเร็จ" }) + "\\n\\n");
 
   clients.push(res);
 
@@ -119,9 +116,22 @@ app.get("/events", (req, res) => {
 });
 
 function sendToSpeaker(message) {
-  const data = "data: " + JSON.stringify({ message }) + "\n\n";
+  const data = "data: " + JSON.stringify({ message }) + "\\n\\n";
   clients.forEach(client => client.write(data));
 }
+
+app.get("/test-pay", (req, res) => {
+  const amount = req.query.amount || 100;
+  const message = "รับเงินแล้ว " + amount + " บาท";
+
+  console.log(message);
+  sendToSpeaker(message);
+
+  res.json({
+    ok: true,
+    message
+  });
+});
 
 app.post("/create-qr", async (req, res) => {
   try {
