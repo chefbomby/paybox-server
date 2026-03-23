@@ -69,3 +69,19 @@ const port = process.env.PORT || 3000;
 app.listen(port, () => {
   console.log(`Server started on port ${port}`);
 });
+app.post("/webhook", (req, res) => {
+  const event = req.body;
+
+  console.log("📩 webhook:", event.key);
+
+  if (event.key === "charge.complete") {
+    const charge = event.data;
+
+    console.log("💰 มีคนจ่ายแล้ว:", charge.amount / 100, "บาท");
+
+    // 👉 ตรงนี้คือจุดที่เราจะสั่ง "กล่องพูด"
+    // เดี๋ยว step ต่อไปจะใส่ตรงนี้
+  }
+
+  res.sendStatus(200);
+});
